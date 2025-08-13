@@ -28,7 +28,7 @@ The editor's architecture is decoupled into several distinct, high-cohesion modu
 
 ## Usage
 
-This program has been pre-built and included in the repo, simply run `./webs` from your terminal. You can also use Bun to build it from source:
+You can also use Bun to build webs from source:
 
 ```bash
 bun run build
