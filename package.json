@@ -1,0 +1,18 @@
+{
+  "name": "webs-editor",
+  "version": "0.1.0",
+  "description": "A Text Editor.",
+  "author": "Conrad Klek <conradklek@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/conradklek/webs-editor.git"
+  },
+  "keywords": [
+    "text",
+    "editor"
+  ],
+  "scripts": {
+    "build": "bun build ./src/cli.js --compile --outfile webs"
+  },
+}
