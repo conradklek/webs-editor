@@ -43,10 +43,8 @@ export class CommandRegistry {
 }
 
 export class CommandHandler {
-  constructor(app, showAlertCallback) {
+  constructor(app) {
     this.app = app;
-    this.showAlert = showAlertCallback;
-    this.currentPaletteDir = process.cwd();
 
     this.commands = {
       e: this.editFile.bind(this),
@@ -127,21 +125,14 @@ export class CommandHandler {
   editFile = (args, force, focusManager) =>
     this.openFile(args[0], force, focusManager, true);
 
-  async openFile(filePathArg, force = false, focusManager, inNewTab = false) {
+  async openFile(filePathArg, force = false, _, inNewTab = false) {
     if (!filePathArg) return { status: EDITOR_MESSAGES.NO_FILE_NAME };
 
     const activeTab = this.app.getActiveTab();
     const activeBuffer = activeTab ? this.app.buffers.get(activeTab.id) : null;
 
     if (activeBuffer && !force && activeBuffer.isDirty) {
-      if (
-        !(await this.showAlert(
-          `${EDITOR_MESSAGES.UNSAVED_CHANGES}\nOpen anyway? (y/n)`,
-          focusManager,
-        ))
-      ) {
-        return { status: EDITOR_MESSAGES.FILE_OPEN_CANCELED };
-      }
+      force = true;
     }
 
     const newFilePath = path.resolve(process.cwd(), filePathArg);
@@ -189,7 +180,8 @@ export class CommandHandler {
 
       const newFileName = path.basename(newFilePath);
       return {
-        status: `"${newFileName}" ${content.split("\n").length}L, ${Buffer.byteLength(content)}B`,
+        status: `"${newFileName}" ${content.split("\n").length
+          }L, ${Buffer.byteLength(content)}B`,
       };
     } catch (e) {
       return { status: `Error opening file: ${e.message}` };
@@ -217,14 +209,15 @@ export class CommandHandler {
       fs.writeFileSync(targetFilePath, content, "utf8");
       editor.actions.setDirty(false);
       return {
-        status: `"${editor.fileName}" written (${content.split("\n").length}L, ${Buffer.byteLength(content)}B)`,
+        status: `"${editor.fileName}" written (${content.split("\n").length
+          }L, ${Buffer.byteLength(content)}B)`,
       };
     } catch (e) {
       return { status: `Save Error: ${e.message}` };
     }
   }
 
-  async quit(_, force, focusManager) {
+  async quit(_, force) {
     const activeTab = this.app.getActiveTab();
     if (!activeTab) {
       if (this.app.tabs.length === 0) process.exit(0);
@@ -233,14 +226,7 @@ export class CommandHandler {
 
     const activeBuffer = this.app.buffers.get(activeTab.id);
     if (!force && activeBuffer.isDirty) {
-      if (
-        !(await this.showAlert(
-          `Unsaved changes in "${activeTab.fileName || "Untitled"}". Close anyway?`,
-          focusManager,
-        ))
-      ) {
-        return { status: "Tab close canceled." };
-      }
+      force = true;
     }
 
     this.app.closeTab(this.app.activeTabId);
@@ -253,45 +239,5 @@ export class CommandHandler {
     if (writeResult.status && writeResult.status.startsWith("Error"))
       return writeResult;
     return this.quit([], force, focusManager);
-  }
-
-  setCurrentPaletteDir = (dirPath) => {
-    this.currentPaletteDir = dirPath;
-  };
-
-  async getPaletteItems() {
-    try {
-      const entries = await fs.promises.readdir(this.currentPaletteDir, {
-        withFileTypes: true,
-      });
-      const parentDir = path.dirname(this.currentPaletteDir);
-      const items = [];
-      if (
-        fs.realpathSync(parentDir) !== fs.realpathSync(this.currentPaletteDir)
-      ) {
-        items.push({ name: "../", value: parentDir, isDirectory: true });
-      }
-      const dirs = entries
-        .filter((e) => !e.name.startsWith(".") && e.isDirectory())
-        .map((e) => ({
-          name: `${e.name}/`,
-          value: path.join(this.currentPaletteDir, e.name),
-          isDirectory: true,
-        }));
-      const files = entries
-        .filter((e) => !e.name.startsWith(".") && e.isFile())
-        .map((e) => ({
-          name: e.name,
-          value: path.join(this.currentPaletteDir, e.name),
-          isDirectory: false,
-        }));
-      return [
-        ...items,
-        ...dirs.sort((a, b) => a.name.localeCompare(b.name)),
-        ...files.sort((a, b) => a.name.localeCompare(b.name)),
-      ];
-    } catch (e) {
-      return [{ name: `Error: ${e.message}`, value: null }];
-    }
   }
 }

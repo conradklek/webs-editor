@@ -3,11 +3,6 @@ export const GUTTER_WIDTH = 6;
 export const STATUS_BAR_PILL_SPACING = 1;
 export const TAB_BAR_HEIGHT = 1;
 
-export const PALETTE_MAX_WIDTH = 80;
-export const PALETTE_MAX_HEIGHT = 20;
-export const PALETTE_INPUT_PROMPT = "» ";
-export const PALETTE_SELECTED_INDICATOR = "♥";
-
 export const FRAME_CHARS = {
   TOP_LEFT: "╭",
   TOP_RIGHT: "╮",
@@ -22,6 +17,11 @@ export const SCROLLBAR_CHARS = {
   VERTICAL_INDICATOR: "┴",
   HORIZONTAL_TRACK: "─",
   HORIZONTAL_INDICATOR: "┤",
+};
+
+export const POWERLINE_CHARS = {
+  SEPARATOR: "",
+  SEPARATOR_LEFT: "",
 };
 
 export const EDITOR_MESSAGES = {
@@ -68,6 +68,8 @@ export const colors = {
   white: "white",
   blue: "blue",
   gray: "gray",
+  green: "green",
+  yellow: "yellow",
   transparent: null,
 };
 
@@ -75,7 +77,6 @@ export const styles = {
   base: { fg: colors.white, bg: colors.transparent },
   inverse: { inverse: true },
   frame: { fg: colors.blue, bg: colors.transparent },
-  shadow: { fg: colors.transparent },
   boxTitle: { bold: true },
   gutterActive: { fg: colors.blue, bold: true },
   gutterInactive: { fg: colors.gray },
@@ -86,21 +87,24 @@ export const styles = {
     indicator: { fg: colors.blue, bold: true },
     scrolled: { fg: colors.blue },
   },
-  statusBar: { bg: colors.black, fg: colors.white },
-  statusBarPillActive: { bg: colors.blue, fg: colors.black, bold: true },
-  statusBarPillInactive: { bg: colors.black, fg: colors.white },
-  commandLine: { bg: colors.black, fg: colors.white },
-  palette: {
-    box: { fg: colors.blue, bg: colors.transparent },
-    input: { bold: true, bg: colors.transparent },
-    itemActive: { inverse: true },
-    itemIndicator: { fg: colors.blue, bold: true },
+  statusBar: {
+    default: { bg: colors.gray, fg: colors.black },
+    mode: {
+      NORMAL: { bg: colors.blue, fg: colors.black, bold: true },
+      INSERT: { bg: colors.green, fg: colors.black, bold: true },
+      VISUAL: { bg: colors.yellow, fg: colors.black, bold: true },
+    },
+    file: { bg: colors.gray, fg: colors.white },
+    cursor: { bg: colors.gray, fg: colors.white },
   },
-  alert: { box: { fg: colors.blue }, message: {}, prompt: {} },
+  commandLine: { bg: colors.black, fg: colors.white },
   tabBar: {
     bg: colors.black,
     fg: colors.white,
     active: { bg: colors.blue, fg: colors.black, bold: true },
-    inactive: { bg: colors.black, fg: colors.white },
+    inactive: { bg: colors.gray, fg: colors.black },
+  },
+  scratchpad: {
+    frame: { fg: colors.blue, bold: true },
   },
 };

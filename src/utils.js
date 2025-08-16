@@ -31,7 +31,7 @@ export function adjustScrollView(
 }
 
 export function createBox(x, y, width, height, title, options = {}) {
-  const { style, bg, hasShadow = false } = options;
+  const { style, bg } = options;
   const boxStyle = style || styles.frame;
   const {
     HORIZONTAL,
@@ -44,18 +44,6 @@ export function createBox(x, y, width, height, title, options = {}) {
   const h_bar = HORIZONTAL.repeat(width - 2);
   const box = [];
   const bgStyle = { bg: bg === undefined ? colors.transparent : bg };
-
-  if (hasShadow) {
-    for (let i = 1; i < height; i++) {
-      box.push({ row: y + i, col: x + width, text: " ", style: styles.shadow });
-    }
-    box.push({
-      row: y + height,
-      col: x + 1,
-      text: " ".repeat(width),
-      style: styles.shadow,
-    });
-  }
 
   for (let i = 0; i < height; i++) {
     box.push({ row: y + i, col: x, text: " ".repeat(width), style: bgStyle });
@@ -95,3 +83,4 @@ export function createBox(x, y, width, height, title, options = {}) {
   }
   return box;
 }
+
