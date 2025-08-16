@@ -33,8 +33,7 @@ You can also use Bun to build webs from source:
 ```bash
 bun run build
 
-// To make run the built unix executable from anywhere:
-
+// Launch the editor from anywhere by typing "webs" in your terminal
 sudo mv ./webs /usr/local/bin/
 ```
 
