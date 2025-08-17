@@ -1,3 +1,22 @@
+export class Emitter {
+  constructor() {
+    this.events = {};
+  }
+
+  on(event, listener) {
+    if (!this.events[event]) {
+      this.events[event] = [];
+    }
+    this.events[event].push(listener);
+  }
+
+  emit(event, ...args) {
+    if (this.events[event]) {
+      this.events[event].forEach((listener) => listener(...args));
+    }
+  }
+}
+
 export class Component {
   constructor(options = {}) {
     this.props = options.props || {};
@@ -28,11 +47,25 @@ export class Component {
   }
   render(screen) {
     let buffer = [];
+    let modals = [];
+    let cursor = { show: false };
+
     this.children.forEach((child) => {
       const childRender = child.render(screen);
-      if (childRender?.buffer) buffer.push(...childRender.buffer);
+      if (childRender) {
+        if (childRender.buffer) {
+          if (child.isModal) {
+            modals.push(childRender);
+          } else {
+            buffer.push(...childRender.buffer);
+          }
+        }
+        if (childRender.cursor && childRender.cursor.show) {
+          cursor = childRender.cursor;
+        }
+      }
     });
-    return { buffer, cursor: { show: false } };
+    return { buffer, modals, cursor };
   }
 }
 

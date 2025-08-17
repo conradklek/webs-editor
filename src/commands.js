@@ -1,4 +1,4 @@
-import { COMMAND_LINE_REGEX, EDITOR_MESSAGES } from "./constants.js";
+import { COMMAND_LINE_REGEX, EDITOR_MESSAGES } from "./shared.js";
 import path from "path";
 import fs from "fs";
 

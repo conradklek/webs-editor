@@ -12,12 +12,10 @@ function handleInputModeKeys(editor, event) {
     editor.actions.enterNormalMode();
     return;
   }
-  if (
-    event.ctrlKey &&
-    (event.key === "b" || event.key === "t" || event.key === "e")
-  ) {
+  if (event.ctrlKey && (event.key === "e" || event.key === "p")) {
     return;
   }
+
   switch (mode) {
     case "INSERT":
       if (key === "ArrowUp") {

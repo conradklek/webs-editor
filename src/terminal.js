@@ -1,6 +1,5 @@
-import { ANSI, UI_RENDER_INTERVAL_MS } from "./constants.js";
+import { ANSI, UI_RENDER_INTERVAL_MS, decolorize } from "./shared.js";
 import { FocusManager } from "./component.js";
-import { decolorize } from "./utils.js";
 import { Screen } from "./screen.js";
 import readline from "readline";
 
@@ -61,48 +60,24 @@ export class Terminal {
       return;
     }
     this.screen.clearRenderBuffer();
-    this.screen.setModalMask(null);
 
     const renderData = this.rootComponent.render(this.getScreenInfo());
 
-    if (renderData.base) {
-      const modalMask = Array.from({ length: this.screen.height }, () =>
-        Array(this.screen.width).fill(false),
-      );
-      if (renderData.modals) {
-        renderData.modals.forEach((modal) => {
-          if (!modal?.buffer) return;
-          modal.buffer.forEach((cell) => {
-            const len = decolorize(cell.text).length;
-            for (let i = 0; i < len; i++) {
-              const x = cell.col + i;
-              const y = cell.row;
-              if (
-                y >= 0 &&
-                y < this.screen.height &&
-                x >= 0 &&
-                x < this.screen.width
-              )
-                modalMask[y][x] = true;
-            }
-          });
-        });
-      }
-      this.screen.setModalMask(modalMask);
-      this.screen.draw(renderData.base.buffer);
+    if (renderData.buffer) {
+      this.screen.draw(renderData.buffer);
     }
-    this.screen.setModalMask(null);
-    if (renderData.modals)
-      renderData.modals.forEach((modal) => this.screen.draw(modal.buffer));
-    if (renderData.buffer) this.screen.draw(renderData.buffer);
 
-    let finalCursor = { show: false };
-    if (renderData.base?.cursor?.show) finalCursor = renderData.base.cursor;
-    if (renderData.modals)
-      renderData.modals.forEach((modal) => {
-        if (modal?.cursor?.show) finalCursor = modal.cursor;
-      });
-    if (renderData.cursor?.show) finalCursor = renderData.cursor;
+    if (renderData.modals) {
+      renderData.modals.forEach((modal) => this.screen.draw(modal.buffer));
+    }
+
+    let finalCursor = renderData.cursor || { show: false };
+    if (renderData.modals && renderData.modals.length > 0) {
+      const lastModal = renderData.modals[renderData.modals.length - 1];
+      if (lastModal.cursor && lastModal.cursor.show) {
+        finalCursor = lastModal.cursor;
+      }
+    }
     this.cursorPos = finalCursor;
 
     this.screen.commit();
@@ -124,10 +99,10 @@ export class Terminal {
   cleanupAndExit() {
     process.stdout.write(
       ANSI.CURSOR_STYLE_BLOCK +
-      ANSI.CLEAR_SCREEN +
-      ANSI.CURSOR_HOME +
-      ANSI.CURSOR_SHOW +
-      ANSI.SGR_RESET,
+        ANSI.CLEAR_SCREEN +
+        ANSI.CURSOR_HOME +
+        ANSI.CURSOR_SHOW +
+        ANSI.SGR_RESET,
     );
     if (process.stdin.isTTY) process.stdin.setRawMode(false);
     process.exit(0);
@@ -137,3 +112,4 @@ export class Terminal {
     return { cols: this.screen.width, rows: this.screen.height };
   }
 }
+

@@ -1,4 +1,4 @@
-import { ANSI, colors } from "./constants.js";
+import { ANSI, colors } from "./shared.js";
 
 class Cell {
   constructor(char = " ", style = {}) {
@@ -78,6 +78,7 @@ export class Screen {
     const bgColors = {
       [colors.black]: ANSI.SGR_BG_BLACK,
       [colors.blue]: ANSI.SGR_BG_BLUE,
+      [colors.gray]: ANSI.SGR_BG_GRAY,
     };
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {

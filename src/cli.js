@@ -2,16 +2,13 @@ import { Terminal } from "./terminal.js";
 import { Editor } from "./editor.js";
 import { CommandHandler } from "./commands.js";
 import { Component } from "./component.js";
-import { Shell, SHELL_HEIGHT } from "./shell.js";
 import { FileTree, FILE_TREE_WIDTH } from "./file-tree.js";
-import { Scratchpad, SCRATCHPAD_WIDTH } from "./scratchpad.js";
+import { FilePalette } from "./file-palette.js";
 import {
   getLineCol,
   adjustScrollView,
   createBox,
   decolorize,
-} from "./utils.js";
-import {
   KEY_NAME_MAP,
   GUTTER_WIDTH,
   TAB_BAR_HEIGHT,
@@ -20,7 +17,7 @@ import {
   SCROLLBAR_CHARS,
   FRAME_CHARS,
   POWERLINE_CHARS,
-} from "./constants.js";
+} from "./shared.js";
 import path from "path";
 import { highlight } from "./highlight.js";
 
@@ -37,8 +34,6 @@ export class TerminalApp extends Component {
       tabInfo: { tabIds: [], activeId: null },
     };
     this.focusManager = null;
-    this.shell = this.addChild(new Shell());
-    this.scratchpad = this.addChild(new Scratchpad());
     this.fileTree = this.addChild(
       new FileTree({
         props: {
@@ -57,6 +52,11 @@ export class TerminalApp extends Component {
         },
       }),
     );
+    this.filePalette = this.addChild(new FilePalette({}));
+    this.filePalette.on("file-selected", (filePath) => {
+      this.commandHandler.openFile(filePath, false, this.focusManager, true);
+    });
+
     this.editor = new Editor("", async (editorState) => {
       if (
         this.state.activeEditorUiState?.mode.startsWith("COMMAND") &&
@@ -203,16 +203,10 @@ export class TerminalApp extends Component {
     const totalLines = text.split("\n").length;
 
     let editorHeight = screen.rows - TAB_BAR_HEIGHT - 1;
-    if (this.shell.state.isOpen) {
-      editorHeight -= SHELL_HEIGHT;
-    }
 
     let editorWidth = screen.cols;
     if (this.fileTree.state.isOpen) {
       editorWidth -= FILE_TREE_WIDTH;
-    }
-    if (this.scratchpad.state.isOpen) {
-      editorWidth -= SCRATCHPAD_WIDTH;
     }
 
     const frameHeight = editorHeight;
@@ -260,29 +254,13 @@ export class TerminalApp extends Component {
   }
 
   async handleKey(key, focusManager) {
-    if (this.fileTree.state.isOpen)
-      return this.fileTree.handleKey(key, focusManager);
-    if (this.shell.state.isOpen) return this.shell.handleKey(key, focusManager);
-    if (this.scratchpad.state.isOpen)
-      return this.scratchpad.handleKey(key, focusManager);
-
-    if (key.ctrl && key.name === "b") {
-      if (this.shell.state.isOpen) {
-        this.shell.close(focusManager);
-        focusManager.requestFocus(this);
-      } else {
-        this.shell.open(focusManager);
-      }
+    if (key.ctrl && key.name === "p") {
+      this.filePalette.open(focusManager);
       return true;
     }
 
     if (key.ctrl && key.name === "e") {
       this.fileTree.open(focusManager);
-      return true;
-    }
-
-    if (key.ctrl && key.name === "n") {
-      this.scratchpad.open(focusManager);
       return true;
     }
 
@@ -295,6 +273,11 @@ export class TerminalApp extends Component {
         }
         return true;
       }
+    }
+
+    if (focusManager.current !== this) {
+      // If focus is on a child component (like file palette), let it handle the key
+      return focusManager.current.handleKey(key, focusManager);
     }
 
     if (this.activeTabId) {
@@ -313,11 +296,13 @@ export class TerminalApp extends Component {
       }
       return true;
     }
+
     return false;
   }
 
   render(screen) {
     let buffer = [];
+    let modals = [];
     let cursor = { show: false };
     let editorMode = "NORMAL";
 
@@ -326,14 +311,6 @@ export class TerminalApp extends Component {
       const fileTreeRender = this.fileTree.render(screen);
       buffer.push(...fileTreeRender.buffer);
       editorXOffset = FILE_TREE_WIDTH;
-    }
-
-    if (this.scratchpad.state.isOpen) {
-      const scratchpadRender = this.scratchpad.render(screen);
-      buffer.push(...scratchpadRender.buffer);
-      if (scratchpadRender.cursor.show) {
-        cursor = scratchpadRender.cursor;
-      }
     }
 
     buffer.push(...this.renderTabBar(screen, editorXOffset));
@@ -346,21 +323,11 @@ export class TerminalApp extends Component {
         editorXOffset,
       );
       buffer.push(...editorBuffer);
-      if (!cursor.show) {
-        cursor = editorCursor;
-      }
+      cursor = editorCursor;
       buffer.push(
         ...this.renderStatusBar(screen, activeEditorUiState, editorXOffset),
       );
       editorMode = activeEditorUiState.mode;
-    }
-
-    if (this.shell.state.isOpen) {
-      const shellRender = this.shell.render(screen);
-      buffer.push(...shellRender.buffer);
-      if (shellRender.cursor.show) {
-        cursor = shellRender.cursor;
-      }
     }
 
     if (
@@ -370,7 +337,7 @@ export class TerminalApp extends Component {
     ) {
       const { commandLine } = activeEditorUiState;
       cursor = {
-        row: screen.rows - 1 - (this.shell.state.isOpen ? SHELL_HEIGHT : 0),
+        row: screen.rows - 1,
         col:
           editorXOffset +
           decolorize(commandLine.prefix + commandLine.input).length,
@@ -378,10 +345,15 @@ export class TerminalApp extends Component {
       };
     }
 
+    const filePaletteRender = this.filePalette.render(screen);
+    if (filePaletteRender) {
+      modals.push(filePaletteRender);
+    }
+
     return {
       buffer,
+      modals,
       cursor,
-      modals: [],
       editorMode,
     };
   }
@@ -391,9 +363,6 @@ export class TerminalApp extends Component {
     const { tabIds, activeId } = this.state.tabInfo;
     let currentX = xOffset;
     let width = screen.cols - xOffset;
-    if (this.scratchpad.state.isOpen) {
-      width -= SCRATCHPAD_WIDTH;
-    }
     const defaultStyle = styles.tabBar;
 
     buffer.push({
@@ -403,7 +372,7 @@ export class TerminalApp extends Component {
       style: { bg: defaultStyle.bg },
     });
 
-    tabIds.forEach((id, index) => {
+    tabIds.forEach((id) => {
       const tab = this.getTab(id);
       if (!tab) return;
       const bufferInfo = this.buffers.get(id);
@@ -411,28 +380,12 @@ export class TerminalApp extends Component {
 
       const isActive = id === activeId;
       const style = isActive ? defaultStyle.active : defaultStyle.inactive;
-      const tabText = ` ${index + 1}:${tab.fileName}${bufferInfo.isDirty ? "*" : ""
-        } `;
+      const tabText = ` ${tab.fileName}${bufferInfo.isDirty ? "*" : ""} `;
 
       if (currentX + decolorize(tabText).length >= screen.cols) return;
 
       buffer.push({ row: 0, col: currentX, text: tabText, style });
-      currentX += decolorize(tabText).length;
-
-      const nextTab = this.getTab(tabIds[index + 1]);
-      const nextIsActive = nextTab && nextTab.id === activeId;
-      const nextStyle = nextIsActive
-        ? defaultStyle.active
-        : defaultStyle.inactive;
-      const nextBg = index < tabIds.length - 1 ? nextStyle.bg : defaultStyle.bg;
-
-      buffer.push({
-        row: 0,
-        col: currentX,
-        text: POWERLINE_CHARS.SEPARATOR,
-        style: { fg: style.bg, bg: nextBg },
-      });
-      currentX++;
+      currentX += decolorize(tabText).length + 1; // +1 for spacing
     });
     return buffer;
   }
@@ -442,17 +395,11 @@ export class TerminalApp extends Component {
     const { scroll } = this.state;
 
     let editorHeight = screen.rows - TAB_BAR_HEIGHT - 1;
-    if (this.shell.state.isOpen) {
-      editorHeight -= SHELL_HEIGHT;
-    }
     const frameHeight = editorHeight;
 
     let editorWidth = screen.cols;
     if (this.fileTree.state.isOpen) {
       editorWidth -= FILE_TREE_WIDTH;
-    }
-    if (this.scratchpad.state.isOpen) {
-      editorWidth -= SCRATCHPAD_WIDTH;
     }
 
     const contentHeight = frameHeight - 2;
@@ -571,15 +518,9 @@ export class TerminalApp extends Component {
     const buffer = [];
 
     let editorWidth = screen.cols - xOffset;
-    if (this.scratchpad.state.isOpen) {
-      editorWidth -= SCRATCHPAD_WIDTH;
-    }
     const frameWidth = editorWidth;
 
     let editorHeight = screen.rows - TAB_BAR_HEIGHT - 1;
-    if (this.shell.state.isOpen) {
-      editorHeight -= SHELL_HEIGHT;
-    }
 
     const frameHeight = editorHeight;
     const contentHeight = frameHeight - 2;
@@ -724,9 +665,9 @@ export class TerminalApp extends Component {
       row: frameYOffset + logicalCursor.row - scroll.row + 1,
       col: xOffset + logicalCursor.col - scroll.col + GUTTER_WIDTH + 1,
       show:
-        !this.shell.state.isOpen &&
         !this.fileTree.state.isOpen &&
-        !this.scratchpad.state.isOpen,
+        !this.filePalette.state.isOpen &&
+        !uiState.mode.startsWith("COMMAND"),
     };
     return { buffer, cursor: editorCursor };
   }
@@ -740,14 +681,8 @@ export class TerminalApp extends Component {
     const buffer = [];
 
     let y = rows - 1;
-    if (this.shell.state.isOpen) {
-      y -= SHELL_HEIGHT;
-    }
 
     let width = cols - xOffset;
-    if (this.scratchpad.state.isOpen) {
-      width -= SCRATCHPAD_WIDTH;
-    }
     const defaultStyle = styles.statusBar.default;
 
     buffer.push({

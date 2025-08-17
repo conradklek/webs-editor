@@ -1,13 +1,21 @@
+import {
+  decolorize,
+  createBox,
+  styles,
+  colors,
+  NERD_FONT_ICONS,
+} from "./shared.js";
 import { Component } from "./component.js";
-import { styles, colors } from "./constants.js";
-import { decolorize, createBox } from "./utils.js";
-import fs from "fs";
 import path from "path";
+import fs from "fs";
 
 export const FILE_TREE_WIDTH = 30;
-const FOLDER_ICON_EXPANDED = "[-]";
-const FOLDER_ICON_COLLAPSED = "[+]";
-const FILE_ICON = " •";
+
+function getFileIcon(filename) {
+  if (!filename) return NERD_FONT_ICONS.default;
+  const extension = path.extname(filename).substring(1);
+  return NERD_FONT_ICONS[extension] || NERD_FONT_ICONS.default;
+}
 
 export class FileTree extends Component {
   constructor(options) {
@@ -79,7 +87,7 @@ export class FileTree extends Component {
     return flattened;
   }
 
-  adjustScroll(selectedIndex, flattenedTree, screen) {
+  adjustScroll(selectedIndex, _, screen) {
     let { scrollOffset } = this.state;
     const contentHeight = screen.rows - 2;
     if (selectedIndex < scrollOffset) {
@@ -154,7 +162,7 @@ export class FileTree extends Component {
 
     const flattenedTree = this.flattenTree();
     const contentHeight = rows - 2;
-    const contentWidth = FILE_TREE_WIDTH - 2;
+    const contentWidth = FILE_TREE_WIDTH - 4;
 
     for (let i = 0; i < contentHeight; i++) {
       const itemIndex = i + this.state.scrollOffset;
@@ -165,11 +173,13 @@ export class FileTree extends Component {
       const isSelected = itemIndex === this.state.selectedIndex;
       const indentation = "  ".repeat(item.depth);
 
-      let icon = FILE_ICON;
+      let icon;
       if (item.isDirectory) {
         icon = this.state.expanded.has(item.path)
-          ? FOLDER_ICON_EXPANDED
-          : FOLDER_ICON_COLLAPSED;
+          ? NERD_FONT_ICONS.directory_open
+          : NERD_FONT_ICONS.directory;
+      } else {
+        icon = getFileIcon(item.name);
       }
 
       let text = `${indentation}${icon} ${item.name}`;
@@ -179,7 +189,7 @@ export class FileTree extends Component {
 
       buffer.push({
         row: i + 1,
-        col: 1,
+        col: 2,
         text: text.padEnd(contentWidth, " "),
         style: isSelected
           ? styles.inverse
@@ -190,4 +200,3 @@ export class FileTree extends Component {
     return { buffer, cursor: { show: false } };
   }
 }
-
